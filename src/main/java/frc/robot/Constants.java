@@ -43,8 +43,14 @@ public final class Constants {
         return Math.atan(vector[0] / vector[1]) + Math.PI * (vector[1] > 0 ? 0 : 1) * (vector[0] > 0 ? 1 : -1);
     }
 
-
     public static double[] angleToVector(double angle) {
         return new double[] {Math.sin(angle), Math.cos(angle)};
+    }
+
+    public static void pause(double seconds) {
+        double finalTime = System.nanoTime() + seconds * 1000000000L;
+        while (System.nanoTime() < finalTime) {
+            //idle
+        }
     }
 }

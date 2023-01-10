@@ -17,19 +17,27 @@ public class SwerveDriveTrain {
     private ADIS16448_IMU gyro;
 
     private final double starting_yaw;
+    private double target_angle;
 
     public SwerveDriveTrain() {
-        right_front = new SwerveModule(rf_direction, rf_driving, new double[] {1, 1}, 0.5);
-        left_front = new SwerveModule(lf_direction, lf_driving, new double[] {-1, 1}, 0.5);
-        right_back = new SwerveModule(rb_direction, rb_driving, new double[] {1, -1}, 0.5);
-        left_back = new SwerveModule(lb_direction, lb_driving, new double[] {-1, -1}, 0.5);
+        right_front = new SwerveModule(rf_direction, rf_driving, new double[] {1, 1}, 25);
+        left_front = new SwerveModule(lf_direction, lf_driving, new double[] {-1, 1}, 25);
+        right_back = new SwerveModule(rb_direction, rb_driving, new double[] {1, -1}, 25);
+        left_back = new SwerveModule(lb_direction, lb_driving, new double[] {-1, -1}, 25);
         gyro = new ADIS16448_IMU(); //damn it's crazy that this is the 16,448th edition
         gyro.calibrate();
         gyro.reset();
         starting_yaw = gyro.getAngle() * Math.PI / 180.0; //it goes in degrees which is kinda stupid but who cares
                             //we can also do .getAngle(), .getAngleX(), .getAngleY(), or .getAngleZ()
+        target_angle = angle();
+        
     }
 
+    public double angle() {
+        return normalizeAngle(starting_yaw - gyro.getAngle() * Math.PI / 180.0);
+    }
+
+    //TeleOp
 
     public void drive(double left_stick_x, double left_stick_y, double right_stick_x, double right_stick_y, double speed_factor, boolean makeX) {
         
@@ -42,10 +50,20 @@ public class SwerveDriveTrain {
         double mgn2 = Math.sqrt(right_stick_x * right_stick_x + right_stick_y * right_stick_y);
 
         if (mgn < 0.2 && mgn2 < 0.2) {
-            right_front.brake();
-            left_front.brake();
-            right_back.brake();
-            left_back.brake();
+            double error = normalizeAngle(target_angle - angle()); 
+            if (Math.abs(error) < 0.02) {
+                right_front.brake();
+                left_front.brake();
+                right_back.brake();
+                left_back.brake();
+                return;
+            }
+            double[] strafevector = {0, 0};
+            double turningfactor = Math.max(Math.min(error * 4.0, 1), -1);
+            right_front.drive(strafevector, turningfactor, 1);
+            left_front.drive(strafevector, turningfactor, 1);
+            right_back.drive(strafevector, turningfactor, 1);
+            left_back.drive(strafevector, turningfactor, 1);
             return;
         }
         
@@ -63,7 +81,14 @@ public class SwerveDriveTrain {
             turning_factor = Math.max(Math.min(error * 4.0, 1), -1) * (mgn2 > 0.2 ? mgn2 : 0);
                 //if the right button isn't pressed we don't want to turn
         } else {
-            turning_factor = right_stick_x;
+            turning_factor = (mgn2 > 0.2 ? right_stick_x : 0);
+        }
+
+        if (turning_factor == 0) {
+            double error = normalizeAngle(target_angle - angle()); 
+            turning_factor = Math.max(Math.min(error * 4.0, 1), -1);
+        } else {
+            target_angle = angle();
         }
 
         double multiplier = Math.min(speed_factor, 1) / Math.max(Math.max(Math.max(right_front.calculateTotalPower(strafevector, turning_factor), left_front.calculateTotalPower(strafevector, turning_factor)), Math.max(right_back.calculateTotalPower(strafevector, turning_factor), left_back.calculateTotalPower(strafevector, turning_factor))), 1.0);
@@ -73,16 +98,68 @@ public class SwerveDriveTrain {
         left_back.drive(strafevector, turning_factor, multiplier);
     }
 
-    public double angle() {
-        return normalizeAngle(starting_yaw - gyro.getAngle() * Math.PI / 180.0);
-    }
-
     private void brake() {
         right_front.makeX();
         left_front.makeX();
         right_back.makeX();
         left_back.makeX();
     }
+
+    //Autonomous
+
+    public void turnClockwise(double degrees) {
+        turnToDegree(angle() * 180 / Math.PI + degrees);
+    }
+
+    public void turnToDegree(double degrees) {
+        double target_angle = normalizeAngle(degrees * Math.PI / 180.0);
+        double[] strafevector = {0, 0};
+
+        right_front.drive(strafevector, 0, 0.001);
+        left_front.drive(strafevector, 0, 0.001);
+        right_back.drive(strafevector, 0, 0.001);
+        left_back.drive(strafevector, 0, 0.001);
+
+        pause(0.5);
+
+        while (Math.abs(normalizeAngle(target_angle - angle())) > 0.05) { //2.8 degrees
+            double error = normalizeAngle(target_angle - angle());
+            double turningfactor = Math.max(Math.min(error * 4.0, 1), -1);
+            right_front.drive(strafevector, turningfactor, 1);
+            left_front.drive(strafevector, turningfactor, 1);
+            right_back.drive(strafevector, turningfactor, 1);
+            left_back.drive(strafevector, turningfactor, 1);
+        }
+        
+        right_front.brake();
+        left_front.brake();
+        right_back.brake();
+        left_back.brake();
+    }
+
+    public void strafe(double[] vector, double power, double time) {
+        double angle = normalizeAngle(vectorToAngle(vector) - angle());
+        double[] strafevector = angleToVector(angle);
+        right_front.drive(strafevector, 0, 0.001);
+        left_front.drive(strafevector, 0, 0.001);
+        right_back.drive(strafevector, 0, 0.001);
+        left_back.drive(strafevector, 0, 0.001);
+
+        pause(0.5);
+
+        right_front.drive(strafevector, 0, power);
+        left_front.drive(strafevector, 0, power);
+        right_back.drive(strafevector, 0, power);
+        left_back.drive(strafevector, 0, power);
+        
+        pause(time);
+
+        right_front.brake();
+        left_front.brake();
+        right_back.brake();
+        left_back.brake();
+    }
+
 }
 
 class SwerveModule { //each module requires 2 Talon FX motors

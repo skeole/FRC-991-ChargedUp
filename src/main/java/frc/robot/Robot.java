@@ -6,9 +6,12 @@ package frc.robot;
 
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.XboxController;
+//import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 //import edu.wpi.first.wpilibj2.command.Command;
 //import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import frc.robot.subsystems.SwerveDriveTrain;
+
+import static frc.robot.Constants.*;
 
 public class Robot extends TimedRobot {
   //private Command m_autonomousCommand;
@@ -35,6 +38,16 @@ public class Robot extends TimedRobot {
     //if (m_autonomousCommand != null) {
     //  m_autonomousCommand.schedule();
     //}
+    swerve.turnClockwise(45);
+    pause(0.5);
+    swerve.turnToDegree(-90);
+    pause(0.5);
+    swerve.turnToDegree(180);
+    pause(0.5);
+    swerve.strafe(new double[] {1, 0}, 0.3, 5);
+    pause(0.5);
+    swerve.strafe(new double[] {-1, 1}, 0.3, 5);
+    pause(0.5);
   }
 
   @Override
