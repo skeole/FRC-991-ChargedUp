@@ -6,7 +6,7 @@ package frc.robot;
 
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.XboxController;
-//import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 //import edu.wpi.first.wpilibj2.command.Command;
 //import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import frc.robot.subsystems.SwerveDriveTrain;
@@ -29,6 +29,16 @@ public class Robot extends TimedRobot {
   @Override
   public void robotPeriodic() { //autonomous command OR all non-driving teleOp Commands
     //CommandScheduler.getInstance().run();
+    if (show_data) {
+      double[][] temp = swerve.getWheelData();
+      SmartDashboard.putNumber("angle", swerve.angle());
+      SmartDashboard.putNumberArray("right_front", temp[0]);
+        //motion vector x, motion vector y, turning factor, overall vector x, overall vector y
+      SmartDashboard.putNumberArray("left_front", temp[1]);
+      SmartDashboard.putNumberArray("right_back", temp[2]);
+      SmartDashboard.putNumberArray("left_back", temp[3]);
+      SmartDashboard.updateValues();
+    }
   }
 
   @Override

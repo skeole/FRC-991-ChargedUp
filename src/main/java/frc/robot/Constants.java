@@ -27,6 +27,8 @@ public final class Constants {
     
     public static final boolean absolute_directing = false;
 
+    public static final boolean show_data = true;
+
     public static double normalizeAngle(double angle) {
         while (angle > Math.PI) { angle -= 2.0 * Math.PI; }
         while (angle < 0 - Math.PI) { angle += 2.0 * Math.PI; }

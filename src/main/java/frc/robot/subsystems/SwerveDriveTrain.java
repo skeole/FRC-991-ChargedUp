@@ -37,6 +37,12 @@ public class SwerveDriveTrain {
         return normalizeAngle(starting_yaw - gyro.getAngle() * Math.PI / 180.0);
     }
 
+    public double[][] getWheelData() {
+        return new double[][] {
+            right_front.getTargets(), left_front.getTargets(), right_back.getTargets(), left_back.getTargets()
+        };
+    }
+
     //TeleOp
 
     public void drive(double left_stick_x, double left_stick_y, double right_stick_x, double right_stick_y, double speed_factor, boolean makeX) {
@@ -171,6 +177,11 @@ class SwerveModule { //each module requires 2 Talon FX motors
     private final double y_;
     private final double tolerance;
 
+
+    private double[] target_motion_vector = {0, 0};
+    private double target_turning_factor = 0;
+    private double[] target_overall_vector = {0, 0};
+
     public SwerveModule(int direction_motor_port, int driving_motor_port, double[] position, double tolerance_) {
                                     //position: relative position from the center of the circumcircle
                                     //units don't matter, they just have to be consistent
@@ -203,12 +214,25 @@ class SwerveModule { //each module requires 2 Talon FX motors
         double[] vector = {strafevector[0] + turnfactor * x_, strafevector[1] + turnfactor * y_};
         vector[0] *= multiplier;
         vector[1] *= multiplier;
+
+        target_motion_vector[0] = strafevector[0] * multiplier;
+        target_motion_vector[1] = strafevector[1] * multiplier;
+        target_turning_factor = turnfactor * multiplier;
+        target_overall_vector[0] = vector[0];
+        target_overall_vector[1] = vector[1];
+
         setModule(vector);
     }
 
     public void brake() {
         direction_motor.set(ControlMode.PercentOutput, 0);
         driving_motor.set(ControlMode.PercentOutput, 0);
+
+        target_motion_vector[0] = 0;
+        target_motion_vector[1] = 0;
+        target_turning_factor = 0;
+        target_overall_vector[0] = 0;
+        target_overall_vector[1] = 0;
     }
 
     public void makeX() {
@@ -220,6 +244,16 @@ class SwerveModule { //each module requires 2 Talon FX motors
 
         direction_motor.set(ControlMode.PercentOutput, Math.abs(error) < 0.02 ? 0 : Math.max(Math.min(error * 4.0, 1), -1));
         driving_motor.set(ControlMode.PercentOutput, 0);
+
+        target_motion_vector[0] = 0;
+        target_motion_vector[1] = 0;
+        target_turning_factor = error * 4.0;
+        target_overall_vector[0] = -y_;
+        target_overall_vector[1] = x_;
+    }
+
+    public double[] getTargets() {
+        return new double[] {target_motion_vector[0], target_motion_vector[1], target_turning_factor, target_overall_vector[0], target_overall_vector[1]};
     }
 
     private double getAngle() {
