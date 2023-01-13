@@ -20,7 +20,7 @@ public final class Constants {
     public static final int kRightJoystickId = 1;
     public static final int kOperatorGamepadId = 2;
 
-    public static final double ticks_per_radian = 2048.0 / (2.0 * Math.PI); //2048 ticks per revolution
+    public static final double ticks_per_radian = 2048.0 * 12.8 / (2.0 * Math.PI); //2048 ticks per revolution, but a 12.8 gear ratio
 
     public static final int rf_driving = 0, rf_direction = 0, lf_driving = 0, lf_direction = 0, 
                             rb_driving = 0, rb_direction = 0, lb_driving = 0, lb_direction = 0; //ports

@@ -4,9 +4,9 @@
 
 package frc.robot;
 
-import edu.wpi.first.wpilibj.GenericHID;
+//import edu.wpi.first.wpilibj.GenericHID;
 import edu.wpi.first.wpilibj.Joystick;
-import edu.wpi.first.wpilibj.XboxController;
+//import edu.wpi.first.wpilibj.XboxController;
 import frc.robot.autonomous.Taxi;
 import frc.robot.commands.CheezyDrive;
 import frc.robot.commands.ShiftGears;

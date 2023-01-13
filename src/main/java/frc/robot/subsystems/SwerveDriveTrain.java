@@ -5,6 +5,7 @@ import static frc.robot.Constants.*;
 import com.ctre.phoenix.motorcontrol.ControlMode;
 import com.ctre.phoenix.motorcontrol.NeutralMode;
 import com.ctre.phoenix.motorcontrol.can.TalonFX;
+//import com.ctre.phoenix.sensors.Pigeon2;
 
 import edu.wpi.first.wpilibj.ADIS16448_IMU;
 
@@ -15,6 +16,7 @@ public class SwerveDriveTrain {
     private SwerveModule right_back;
     private SwerveModule left_back;
     private ADIS16448_IMU gyro;
+    //private Pigeon2 imu;
 
     private final double starting_yaw;
     private double target_angle;
@@ -29,12 +31,16 @@ public class SwerveDriveTrain {
         gyro.reset();
         starting_yaw = gyro.getAngle() * Math.PI / 180.0; //it goes in degrees which is kinda stupid but who cares
                             //we can also do .getAngle(), .getAngleX(), .getAngleY(), or .getAngleZ()
-        target_angle = angle();
         
+        //imu = new Pigeon2(0);
+        //imu.addYaw(0 - imu.getYaw());
+        //starting_yaw = imu.getYaw(); //.getRoll(), .getPitch() or .getYaw()
+        target_angle = angle();
     }
 
     public double angle() {
         return normalizeAngle(starting_yaw - gyro.getAngle() * Math.PI / 180.0);
+        //return normalizeAngle(starting_yaw - imu.getYaw() * Math.PI / 180.0);
     }
 
     public double[][] getWheelData() {
