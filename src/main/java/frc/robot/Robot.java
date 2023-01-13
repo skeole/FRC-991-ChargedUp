@@ -7,6 +7,7 @@ package frc.robot;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import frc.robot.subsystems.Odometry;
 //import edu.wpi.first.wpilibj2.command.Command;
 //import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import frc.robot.subsystems.SwerveDriveTrain;
@@ -19,15 +20,18 @@ public class Robot extends TimedRobot {
 
   private SwerveDriveTrain swerve;
   private XboxController driver;
+  private Odometry odom;
 
   @Override
   public void robotInit() {
     //m_robotContainer = new RobotContainer();
     swerve = new SwerveDriveTrain();
+    odom = new Odometry();
   }
 
   @Override
   public void robotPeriodic() { //autonomous command OR all non-driving teleOp Commands
+    odom.update();
     //CommandScheduler.getInstance().run();
     if (show_data) {
       double[][] temp = swerve.getWheelData();
@@ -37,6 +41,8 @@ public class Robot extends TimedRobot {
       SmartDashboard.putNumberArray("left_front", temp[1]);
       SmartDashboard.putNumberArray("right_back", temp[2]);
       SmartDashboard.putNumberArray("left_back", temp[3]);
+
+      SmartDashboard.putNumberArray("x_pos_y_pos_angle", odom.getPosition());
       SmartDashboard.updateValues();
     }
   }

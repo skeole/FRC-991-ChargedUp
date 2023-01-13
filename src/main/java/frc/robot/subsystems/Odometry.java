@@ -23,10 +23,18 @@ public class Odometry {
     private final double starting_angle;
     private ADIS16448_IMU gyro;
 
+    //private Pigeon2 imu;
+    //private double[] quaternion = new double[4];;
+
     public Odometry() {
-        gyro = new ADIS16448_IMU(); //don't calibrate or reset because we do that in SwerveDriveTrain
+        gyro = new ADIS16448_IMU();
+            //don't calibrate or reset because we do that in SwerveDriveTrain, and we define this after our SwerveDriveTrain
         starting_angle = gyro.getAngle() * Math.PI / 180.0;
 
+        //imu = new Pigeon2(0);
+        //imu.get6dQuaternion(quaternion);
+            //don't reset because we do that in SwerveDriveTrain, and we define this after our SwerveDriveTrain
+        //starting_yaw = imu.getYaw(); //.getRoll(), .getPitch() or .getYaw()
         angle = 0;
     }
 
@@ -36,6 +44,9 @@ public class Odometry {
             previous_three_y_positions[2], 
             angle
         };
+        /* return new double[] {
+            quaternion[0], quaternion[1], quaternion[2], quaternion[3], angle
+        } */
     }
 
     public void update() {
@@ -103,11 +114,16 @@ public class Odometry {
         previous_three_y_positions[0] = previous_three_y_positions[1];
         previous_three_y_positions[1] = previous_three_y_positions[2];
         previous_three_y_positions[2] = new_y_position;
+
+        /* Pigeon2 Code
+        angle = angle();
+        imu.get6dQuaternion(quaternion); */
     }
 
     private double angle() {
         return normalizeAngle(starting_angle - gyro.getAngle() * Math.PI / 180.0);
             // .getAngle(), .getGyroAngleX(), .getGyroAngleY(), .getGyroAngleZ();
+        //return normalizeAngle(starting_yaw - imu.getYaw() * Math.PI / 180.0);
     }
 
     private double[] getXYAccel() { //I assume x and y acceleration are with respect to the accelerometer, not absolute
@@ -118,6 +134,13 @@ public class Odometry {
             gyro.getAccelX() * Math.sin(angle) + gyro.getAccelY() * Math.cos(angle), 
             gyro.getAccelX() * Math.cos(angle) - gyro.getAccelY() * Math.sin(angle)
         };
+
+        /*
+        return new double[] {
+            imu.getAccelX() * Math.sin(angle) + gyro.getAccelY() * Math.cos(angle), 
+            gyro.getAccelX() * Math.cos(angle) - gyro.getAccelY() * Math.sin(angle)
+        }
+         */
     }
 
     /* 
