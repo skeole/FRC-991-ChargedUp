@@ -23,18 +23,18 @@ public class Odometry {
     private final double starting_angle;
     private ADIS16448_IMU gyro;
 
-    //private Pigeon2 imu;
-    //private double[] quaternion = new double[4];;
+    /* private Pigeon2 imu;
+    private double[] quaternion = new double[4]; */
 
     public Odometry() {
         gyro = new ADIS16448_IMU();
             //don't calibrate or reset because we do that in SwerveDriveTrain, and we define this after our SwerveDriveTrain
         starting_angle = gyro.getAngle() * Math.PI / 180.0;
 
-        //imu = new Pigeon2(0);
-        //imu.get6dQuaternion(quaternion);
+        /* imu = new Pigeon2(0);
+        imu.get6dQuaternion(quaternion);
             //don't reset because we do that in SwerveDriveTrain, and we define this after our SwerveDriveTrain
-        //starting_yaw = imu.getYaw(); //.getRoll(), .getPitch() or .getYaw()
+        starting_yaw = imu.getYaw(); //.getRoll(), .getPitch() or .getYaw() */
         angle = 0;
     }
 
@@ -115,8 +115,7 @@ public class Odometry {
         previous_three_y_positions[1] = previous_three_y_positions[2];
         previous_three_y_positions[2] = new_y_position;
 
-        /* Pigeon2 Code
-        angle = angle();
+        /* angle = angle();
         imu.get6dQuaternion(quaternion); */
     }
 
@@ -134,13 +133,6 @@ public class Odometry {
             gyro.getAccelX() * Math.sin(angle) + gyro.getAccelY() * Math.cos(angle), 
             gyro.getAccelX() * Math.cos(angle) - gyro.getAccelY() * Math.sin(angle)
         };
-
-        /*
-        return new double[] {
-            imu.getAccelX() * Math.sin(angle) + gyro.getAccelY() * Math.cos(angle), 
-            gyro.getAccelX() * Math.cos(angle) - gyro.getAccelY() * Math.sin(angle)
-        }
-         */
     }
 
     /* 
