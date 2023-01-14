@@ -75,7 +75,7 @@ public class Robot extends TimedRobot {
   }
 
   @Override
-  public void teleopPeriodic() { //driving code
+  public void teleopPeriodic() { // driving code
     swerve.drive(driver.getLeftX(), 0 - driver.getLeftY(), driver.getRightX(), 0 - driver.getRightY(), 1 - 0.5 * driver.getRightTriggerAxis(), driver.getAButton());
   }
 }

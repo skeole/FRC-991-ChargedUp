@@ -5,7 +5,7 @@ import static frc.robot.Constants.*;
 import com.ctre.phoenix.motorcontrol.ControlMode;
 import com.ctre.phoenix.motorcontrol.NeutralMode;
 import com.ctre.phoenix.motorcontrol.can.TalonFX;
-//import com.ctre.phoenix.sensors.Pigeon2;
+import com.ctre.phoenix.sensors.Pigeon2;
 
 import edu.wpi.first.wpilibj.ADIS16448_IMU;
 
@@ -16,7 +16,7 @@ public class SwerveDriveTrain {
     private SwerveModule right_back;
     private SwerveModule left_back;
     private ADIS16448_IMU gyro;
-    //private Pigeon2 imu;
+    private Pigeon2 imu;
 
     private final double starting_yaw;
     private double target_angle;
@@ -26,21 +26,28 @@ public class SwerveDriveTrain {
         left_front = new SwerveModule(lf_direction, lf_driving, new double[] {-1, 1}, 25);
         right_back = new SwerveModule(rb_direction, rb_driving, new double[] {1, -1}, 25);
         left_back = new SwerveModule(lb_direction, lb_driving, new double[] {-1, -1}, 25);
-        gyro = new ADIS16448_IMU(); //damn it's crazy that this is the 16,448th edition
-        gyro.calibrate();
-        gyro.reset();
-        starting_yaw = gyro.getAngle() * Math.PI / 180.0; //it goes in degrees which is kinda stupid but who cares
-                            //we can also do .getAngle(), .getAngleX(), .getAngleY(), or .getAngleZ()
+
+        if (use_pigeon2) {
+            imu = new Pigeon2(0);
+            imu.addYaw(0 - imu.getYaw());
+            starting_yaw = imu.getYaw(); // also .getRoll(), .getPitch() or .getYaw()
+        } else {
+            gyro = new ADIS16448_IMU();
+            gyro.calibrate();
+            gyro.reset();
+            starting_yaw = gyro.getAngle() * Math.PI / 180.0; // it goes in degrees which is kinda stupid but who cares
+                                // also .getAngle(), .getGyroAngleX(), .getGyroAngleY(), or .getGyroAngleZ()
+        }
         
-        //imu = new Pigeon2(0);
-        //imu.addYaw(0 - imu.getYaw());
-        //starting_yaw = imu.getYaw(); //.getRoll(), .getPitch() or .getYaw()
         target_angle = angle();
     }
 
     public double angle() {
-        return normalizeAngle(starting_yaw - gyro.getAngle() * Math.PI / 180.0);
-        //return normalizeAngle(starting_yaw - imu.getYaw() * Math.PI / 180.0);
+        if (use_pigeon2) {
+            return normalizeAngle(starting_yaw - imu.getYaw() * Math.PI / 180.0);
+        } else {
+            return normalizeAngle(starting_yaw - gyro.getAngle() * Math.PI / 180.0);
+        }
     }
 
     public double[][] getWheelData() {
@@ -54,7 +61,7 @@ public class SwerveDriveTrain {
     public void drive(double left_stick_x, double left_stick_y, double right_stick_x, double right_stick_y, double speed_factor, boolean makeX) {
         
         if (makeX) {
-            brake();
+            makeX();
             return;
         }
 
@@ -64,18 +71,12 @@ public class SwerveDriveTrain {
         if (mgn < 0.2 && mgn2 < 0.2) {
             double error = normalizeAngle(target_angle - angle()); 
             if (Math.abs(error) < 0.02) {
-                right_front.brake();
-                left_front.brake();
-                right_back.brake();
-                left_back.brake();
+                brake();
                 return;
             }
             double[] strafevector = {0, 0};
             double turningfactor = Math.max(Math.min(error * 4.0, 1), -1);
-            right_front.drive(strafevector, turningfactor, 1);
-            left_front.drive(strafevector, turningfactor, 1);
-            right_back.drive(strafevector, turningfactor, 1);
-            left_back.drive(strafevector, turningfactor, 1);
+            drive(strafevector, turningfactor, 1);
             return;
         }
         
@@ -88,10 +89,9 @@ public class SwerveDriveTrain {
 
         if (absolute_directing) {
             double right_stick_angle = vectorToAngle(new double[] {right_stick_x, right_stick_y});
-
             double error = normalizeAngle(right_stick_angle - angle()); 
             turning_factor = Math.max(Math.min(error * 4.0, 1), -1) * (mgn2 > 0.2 ? mgn2 : 0);
-                //if the right button isn't pressed we don't want to turn
+                // if the right button isn't pressed we don't want to turn
         } else {
             turning_factor = (mgn2 > 0.2 ? right_stick_x : 0);
         }
@@ -104,17 +104,28 @@ public class SwerveDriveTrain {
         }
 
         double multiplier = Math.min(speed_factor, 1) / Math.max(Math.max(Math.max(right_front.calculateTotalPower(strafevector, turning_factor), left_front.calculateTotalPower(strafevector, turning_factor)), Math.max(right_back.calculateTotalPower(strafevector, turning_factor), left_back.calculateTotalPower(strafevector, turning_factor))), 1.0);
-        right_front.drive(strafevector, turning_factor, multiplier);
-        left_front.drive(strafevector, turning_factor, multiplier);
-        right_back.drive(strafevector, turning_factor, multiplier);
-        left_back.drive(strafevector, turning_factor, multiplier);
+        drive(strafevector, turning_factor, multiplier);
     }
 
-    private void brake() {
+    public void makeX() {
         right_front.makeX();
         left_front.makeX();
         right_back.makeX();
         left_back.makeX();
+    }
+
+    public void brake() {
+        right_front.brake();
+        left_front.brake();
+        right_back.brake();
+        left_back.brake();
+    }
+
+    private void drive(double[] strafevector, double turningfactor, double multiplier) {
+        right_front.drive(strafevector, turningfactor, multiplier);
+        left_front.drive(strafevector, turningfactor, multiplier);
+        right_back.drive(strafevector, turningfactor, multiplier);
+        left_back.drive(strafevector, turningfactor, multiplier);
     }
 
     //Autonomous
@@ -150,31 +161,26 @@ public class SwerveDriveTrain {
     }
 
     public void strafe(double[] vector, double power, double time) {
-        double angle = normalizeAngle(vectorToAngle(vector) - angle());
-        double[] strafevector = angleToVector(angle);
-        right_front.drive(strafevector, 0, 0.001);
-        left_front.drive(strafevector, 0, 0.001);
-        right_back.drive(strafevector, 0, 0.001);
-        left_back.drive(strafevector, 0, 0.001);
-
-        pause(0.5);
-
-        right_front.drive(strafevector, 0, power);
-        left_front.drive(strafevector, 0, power);
-        right_back.drive(strafevector, 0, power);
-        left_back.drive(strafevector, 0, power);
+        strafe(vector, power);
         
         pause(time);
 
-        right_front.brake();
-        left_front.brake();
-        right_back.brake();
-        left_back.brake();
+        brake();
+    }
+
+    public void strafe(double[] vector, double power) {
+        double angle = normalizeAngle(vectorToAngle(vector) - angle());
+        double[] strafevector = angleToVector(angle);
+        drive(strafevector, 0, 0.001);
+
+        pause(0.5);
+
+        drive(strafevector, 0, power);
     }
 
 }
 
-class SwerveModule { //each module requires 2 Talon FX motors
+class SwerveModule { // each module requires 2 Talon FX motors
 
     private TalonFX direction_motor;
     private TalonFX driving_motor;
@@ -189,8 +195,8 @@ class SwerveModule { //each module requires 2 Talon FX motors
     private double[] target_overall_vector = {0, 0};
 
     public SwerveModule(int direction_motor_port, int driving_motor_port, double[] position, double tolerance_) {
-                                    //position: relative position from the center of the circumcircle
-                                    //units don't matter, they just have to be consistent
+                                    // position: relative position from the center of the circumcircle
+                                    // units don't matter, they just have to be consistent
         direction_motor = new TalonFX(direction_motor_port);
         direction_motor.setSelectedSensorPosition(0, 0, 0);
 
@@ -211,7 +217,7 @@ class SwerveModule { //each module requires 2 Talon FX motors
     }
 
     public double calculateTotalPower(double[] strafevector, double turnfactor) {
-        double x = strafevector[0] + turnfactor * x_; //positive turnfactor --> rotate clockwise
+        double x = strafevector[0] + turnfactor * x_; // positive turnfactor -> rotate clockwise
         double y = strafevector[1] + turnfactor * y_;
         return Math.sqrt(x * x + y * y);
     }
