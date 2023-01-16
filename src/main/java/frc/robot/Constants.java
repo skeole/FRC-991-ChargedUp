@@ -29,6 +29,18 @@ public final class Constants {
 
     public static final int f_pivot = 0, s_pivot = 0; // port number
 
+    public static final double first_arm_initial_angle = -30; // 0 means straight horizontal, positive means counterclockwise
+    public static final double second_arm_initial_angle = 30; // 0 means straight in line with first arm, positive means counterclockwise
+                                        // both in degrees
+
+    public static final double first_arm_weight = 10; // pounds
+    public static final double second_arm_weight = 16; // including the claw
+
+    public static final double first_arm_center = 0.5; // ratio - how far from pivot is the center of mass
+    public static final double second_arm_center = 0.6; // should include the claw in center of mass but not in length
+
+    public static final double target_angular_speed = 30; // degrees per second
+
     // static functions
 
     public static double normalizeAngle(double angle) {
