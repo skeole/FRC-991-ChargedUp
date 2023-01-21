@@ -28,15 +28,17 @@ public class SwerveDriveTrain {
         left_back = new SwerveModule(lb_direction, lb_driving, new double[] {-1, -1}, 25);
 
         if (use_pigeon2) {
-            imu = new Pigeon2(0);
+            imu = new Pigeon2(imu_port);
             imu.addYaw(0 - imu.getYaw());
             starting_yaw = imu.getYaw(); // also .getRoll(), .getPitch() or .getYaw()
-        } else {
+        } else if (use_ADIS16448) {
             gyro = new ADIS16448_IMU();
             gyro.calibrate();
             gyro.reset();
             starting_yaw = gyro.getAngle() * Math.PI / 180.0; // it goes in degrees which is kinda stupid but who cares
                                 // also .getAngle(), .getGyroAngleX(), .getGyroAngleY(), or .getGyroAngleZ()
+        } else {
+            starting_yaw = 0;
         }
         
         target_angle = angle();
@@ -45,8 +47,10 @@ public class SwerveDriveTrain {
     public double angle() {
         if (use_pigeon2) {
             return normalizeAngle(starting_yaw - imu.getYaw() * Math.PI / 180.0);
-        } else {
+        } else if (use_ADIS16448) {
             return normalizeAngle(starting_yaw - gyro.getAngle() * Math.PI / 180.0);
+        } else {
+            return 0; // robot acts as if it's always pointing straight ahead
         }
     }
 
@@ -138,26 +142,17 @@ public class SwerveDriveTrain {
         double target_angle = normalizeAngle(degrees * Math.PI / 180.0);
         double[] strafevector = {0, 0};
 
-        right_front.drive(strafevector, 0, 0.001);
-        left_front.drive(strafevector, 0, 0.001);
-        right_back.drive(strafevector, 0, 0.001);
-        left_back.drive(strafevector, 0, 0.001);
+        drive(strafevector, 0, 0.001);
 
         pause(0.5);
 
         while (Math.abs(normalizeAngle(target_angle - angle())) > 0.05) { //2.8 degrees
             double error = normalizeAngle(target_angle - angle());
             double turningfactor = Math.max(Math.min(error * 4.0, 1), -1);
-            right_front.drive(strafevector, turningfactor, 1);
-            left_front.drive(strafevector, turningfactor, 1);
-            right_back.drive(strafevector, turningfactor, 1);
-            left_back.drive(strafevector, turningfactor, 1);
+            drive(strafevector, turningfactor, 1);
         }
         
-        right_front.brake();
-        left_front.brake();
-        right_back.brake();
-        left_back.brake();
+        brake();
     }
 
     public void strafe(double[] vector, double power, double time) {
@@ -176,6 +171,26 @@ public class SwerveDriveTrain {
         pause(0.5);
 
         drive(strafevector, 0, power);
+    } // what we can do is have the drive function stop once we cross a specific limit
+
+    public void autoBalance() {
+        turnToDegree(0); // point straight ahead
+
+        boolean run = true;
+        while (run) {
+            double error;
+            if (use_pigeon2) {
+                error = imu.getRoll();
+            } else {
+                error = gyro.getGyroAngleX(); // I *think* this is roll but I don't know for sure
+            }
+            if (Math.abs(error) > 1.5) { // if we are more than 1.5 degrees off
+                drive(new double[] {0, 1.0}, 0, 0.1 * error / Math.abs(error)); // go forward or backward depending on direction of error
+            } else {
+                run = false;
+            }
+        }
+        makeX();
     }
 
 }

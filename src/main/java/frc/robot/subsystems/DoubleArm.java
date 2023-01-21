@@ -33,11 +33,11 @@ public class DoubleArm {
         first_pivot_encoder = new Encoder(0, 1); // idk what channelA and B are
         second_pivot_encoder = new Encoder(0, 1);
 
-        first_pivot_encoder.setReverseDirection(false);
+        first_pivot_encoder.setReverseDirection(false); // we want it so the encoder increases when the arm goes counterclockwise
         second_pivot_encoder.setReverseDirection(false);
 
         first_pivot_encoder.setDistancePerPulse(Math.PI / 4986.0); // 2048 * 4 ticks per revolution
-        second_pivot_encoder.setDistancePerPulse(Math.PI / 4986.0);
+        second_pivot_encoder.setDistancePerPulse(Math.PI / 4986.0); // adjust this there's a gear ratio
 
         first_pivot_initial = first_pivot_encoder.getDistance() - first_arm_initial_angle * Math.PI / 180.0;
         // angle = distance() - first pivot initial + init angle
@@ -70,55 +70,35 @@ public class DoubleArm {
         return 0 - torque / 12.0;
     }
 
-    private double torqueToVoltage(double torque) {
-        // if we want to rotate a motor counterclockwise, torqueToVoltage(.getTorque() + 0.1)
-        // if we want to rotate clockwise, .getTorque() - 0.1 instead
-        // Torque is directly proportional to current
-        // Power = Current * Voltage
-
-        // I'm pretty sure that voltage is proportional to torque SQUARED
-
-        // we can also test this empirically: 
-            // set the motors up with PID to not move then do this
-        // first_pivot.getBusVoltage();
-        return 0; // very sad
+    public void goToPosition(double x, double y) {
+        double[] temp = convertPositionToAngles(x, y);
+        first_pivot_target = temp[0];
+        second_pivot_target = temp[1];
+        tick();
     }
 
-    // what we could do is add to SmartDashboard our torque and voltage at all times
-    // put them down in a graph and do a regression
-
-    private void goToPosition(double x, double y) {
-
+    private double speed(double error_radians) {
+        return 2 * error_radians; // our target speed is 2 * angular error
+                                  // as a ratio; if magnitude > 1 -> it gets clipped
     }
 
     private void tick() {
         double[] current_angles = getArmAngles();
+        
+        // Velocity PID
+        first_pivot.setVoltage(Math.min(12, Math.max(-12, 
+            first_pivot.getBusVoltage() + // whatever our current voltage is
 
-        if (Math.abs(first_pivot_target - current_angles[0]) < 0.2) { // if we're within 11.5 degrees, do a normal PID
-            first_pivot.setVoltage(Math.min(12, Math.max(-12, 
-                40 * (first_pivot_target - current_angles[0]) // up to 8V
-            )));
-        } else { // if we're farther away, do a velocity PID
-            first_pivot.setVoltage(Math.min(12, Math.max(-12, 
-                first_pivot.getBusVoltage() + // whatever our current voltage is
+            3 * (Math.min(1, Math.max(-1, speed(first_pivot_target - current_angles[0]))) * target_angular_speed * Math.PI / 180.0 - first_pivot_encoder.getRate()))
+            // if we're going slower/faster than we want, then correct that
+            // target angular speed is decreased if we are closer than half a radian
+            // we will have to tune this
+        ));
 
-                3 * (Math.min(1, Math.max(-1, 2 * (first_pivot_target - current_angles[0]))) * target_angular_speed * Math.PI / 180.0 - first_pivot_encoder.getRate()))
-                // if we're going slower/faster than we want, then correct that
-                // target angular speed is decreased if we are closer than half a radian
-                // we will have to tune this
-            ));
-        }
-
-        if (Math.abs(second_pivot_target - current_angles[1]) < 0.2) {
-            second_pivot.setVoltage(Math.min(12, Math.max(-12, 
-                40 * (second_pivot_target - current_angles[1])
-            )));
-        } else {
-            second_pivot.setVoltage(Math.min(12, Math.max(-12, 
-                second_pivot.getBusVoltage() + 
-                3 * (Math.min(1, Math.max(-1, 2 * (second_pivot_target - current_angles[1]))) * target_angular_speed * Math.PI / 180.0 - second_pivot_encoder.getRate()))
-            ));
-        }
+        second_pivot.setVoltage(Math.min(12, Math.max(-12, 
+            second_pivot.getBusVoltage() + 
+            3 * (Math.min(1, Math.max(-1, speed(second_pivot_target - current_angles[1]))) * target_angular_speed * Math.PI / 180.0 - second_pivot_encoder.getRate()))
+        ));
 
         if (show_data) {
             SmartDashboard.putNumberArray("Torque Data", new double[] {
@@ -126,7 +106,7 @@ public class DoubleArm {
                 first_pivot.getBusVoltage(),
                 getSecondPivotTorque(),
                 second_pivot.getBusVoltage()
-            }); // try to find a relationship between torque and voltage
+            });
         }
     }
 

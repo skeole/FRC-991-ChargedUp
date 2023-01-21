@@ -10,18 +10,21 @@ public final class Constants {
 
     // general
 
-    public static final boolean show_data = true;
+    public static final boolean show_data = false; // should only be true if use_pigeon2
+    public static final boolean use_ADIS16448 = false;
     public static final boolean use_pigeon2 = false;
-        // if false -> use ADIS16448 instead
+        // only one of these should be true
 
     // drivetrain
 
     public static final double ticks_per_radian = 2048.0 * 12.8 / (2.0 * Math.PI); // 2048 ticks per revolution with a 12.8 L1 gear ratio
 
-    public static final int rf_driving = 0, rf_direction = 0, lf_driving = 0, lf_direction = 0, 
-                            rb_driving = 0, rb_direction = 0, lb_driving = 0, lb_direction = 0; // port number
+    public static final int rf_driving = 3, rf_direction = 2, lf_driving = 4, lf_direction = 5, 
+                            rb_driving = 0, rb_direction = 1, lb_driving = 6, lb_direction = 7; // port number
     
-    public static final boolean absolute_directing = false;
+    public static final boolean absolute_directing = false; // can only be true if use_ADIS16448 or use_pigeon2 is true
+
+    public static final int imu_port = 0; // only if using pigeon
 
     // double arm
 
@@ -67,6 +70,15 @@ public final class Constants {
         double finalTime = System.nanoTime() + seconds * 1000000000L;
         while (System.nanoTime() < finalTime) {
             // idle
+        }
+    }
+
+    public static void checkIfValuesWork() {
+        if (use_pigeon2 && use_ADIS16448) {
+            throw new IllegalArgumentException("You can only use one IMU");
+        }
+        if ((!(use_pigeon2 || use_ADIS16448)) && (show_data || absolute_directing)) {
+            throw new IllegalArgumentException("If you're not using an IMU, you can't show your position data and you also can't do absolute direction");
         }
     }
 
