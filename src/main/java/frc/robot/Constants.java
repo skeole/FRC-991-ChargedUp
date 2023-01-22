@@ -20,7 +20,7 @@ public final class Constants {
 
     // drivetrain
 
-    public static final double ticks_per_revolution = 2048.0 * 12.8; // 2048 ticks per revolution with a 12.8 L1 gear ratio
+    public static final double ticks_per_revolution = 2048.0 * 150.0 / 7.0; // 2048 ticks per revolution with a 150 / 7 = 21.43 gear ratio for MK4i Swerve Module
 
     public static final double max_error = 25; // wheels have to point within this many degrees of the target before they start spinning
 

@@ -162,6 +162,15 @@ public class SwerveDriveTrain {
     }
 
     public void strafe(double[] vector, double power) {
+        double start_time = System.nanoTime() / 1000000000.0;
+
+        while (System.nanoTime() / 1000000000.0 < start_time + 0.1) {
+            drive(angleToVector(normalizeAngle(vectorToAngle(vector) - angle())), 0, 0.01); // turn the wheels to our target position first
+        }
+        brake();
+
+        pause(0.1);
+
         drive(angleToVector(normalizeAngle(vectorToAngle(vector) - angle())), 0, power);
     } // what we can do is have the drive function stop once we cross a specific limit
 
