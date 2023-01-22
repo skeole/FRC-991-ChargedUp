@@ -12,19 +12,26 @@ public final class Constants {
 
     public static final boolean show_data = false; // should only be true if use_pigeon2
     public static final boolean use_ADIS16448 = false;
-    public static final boolean use_pigeon2 = false;
-        // only one of these should be true
+    public static final boolean use_pigeon2 = false; // only one of these should be true
+    public static final int imu_port = 0; // only if using pigeon
+
+    public static final double joystick_deadzone = 0.2; 
+            // if the joysticks have a magnitude less than this then they register as not being activated
 
     // drivetrain
 
-    public static final double ticks_per_radian = 2048.0 * 12.8 / (2.0 * Math.PI); // 2048 ticks per revolution with a 12.8 L1 gear ratio
+    public static final double ticks_per_revolution = 2048.0 * 12.8; // 2048 ticks per revolution with a 12.8 L1 gear ratio
+
+    public static final double max_error = 25; // wheels have to point within this many degrees of the target before they start spinning
 
     public static final int rf_driving = 3, rf_direction = 2, lf_driving = 4, lf_direction = 5, 
-                            rb_driving = 0, rb_direction = 1, lb_driving = 6, lb_direction = 7; // port number
+                            rb_driving = 0, rb_direction = 1, lb_driving = 6, lb_direction = 7; // port numbers
     
     public static final boolean absolute_directing = false; // can only be true if use_ADIS16448 or use_pigeon2 is true
+    public static final double directing_sensitivity = 4.0; // turning factor is this * angular error
 
-    public static final int imu_port = 0; // only if using pigeon
+    public static final double directing_motor_sensitivity = 4.0; // power of directing motors is this * angular error
+
 
     // double arm
 
@@ -83,6 +90,10 @@ public final class Constants {
     }
 
     // constants for example code
+
+    // converted constants, if applicable
+
+    public static final double ticks_per_radian = ticks_per_revolution / (2.0 * Math.PI);
     
     public static final int kDriveLeftId = 10;
     public static final int kDriveLeftFollowerId = 11;
