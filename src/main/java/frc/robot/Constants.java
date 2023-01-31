@@ -32,15 +32,14 @@ public final class Constants {
 
     public static final double directing_motor_sensitivity = 4.0; // power of directing motors is this * angular error
 
-
     // double arm
 
     public static final double first_pivot_height = 44.875, first_arm_length = 32, second_arm_length = 20; // inches
 
     public static final int f_pivot = 0, s_pivot = 0; // port number
 
-    public static final double first_arm_initial_angle = -30; // 0 means straight horizontal, positive means counterclockwise
-    public static final double second_arm_initial_angle = 30; // 0 means straight in line with first arm, positive means counterclockwise
+    public static final double first_encoder_zero = 1239; // encoder reading when both arms are straight ahead
+    public static final double second_encoder_zero = -1247; // can be negative
                                         // both in degrees
 
     public static final double first_arm_weight = 10; // pounds

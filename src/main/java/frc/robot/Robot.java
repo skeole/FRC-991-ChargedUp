@@ -7,6 +7,7 @@ package frc.robot;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import frc.robot.subsystems.DoubleArm;
 import frc.robot.subsystems.Odometry;
 //import edu.wpi.first.wpilibj2.command.Command;
 //import edu.wpi.first.wpilibj2.command.CommandScheduler;
@@ -21,12 +22,15 @@ public class Robot extends TimedRobot {
   private SwerveDriveTrain swerve;
   private XboxController driver;
   private Odometry odom;
+  private DoubleArm double_arm;
 
   @Override
   public void robotInit() {
     //m_robotContainer = new RobotContainer();
     swerve = new SwerveDriveTrain();
     odom = new Odometry();
+    double_arm = new DoubleArm();
+    double_arm.resetEncoders();
   }
 
   @Override
@@ -45,6 +49,24 @@ public class Robot extends TimedRobot {
       SmartDashboard.putNumberArray("x_pos_y_pos_angle", odom.getPosition());
       SmartDashboard.updateValues();
     }
+  }
+
+  @Override
+  public void testInit() {
+    if (double_arm == null)
+      double_arm = new DoubleArm();
+  }
+
+  @Override
+  public void testPeriodic() {
+    double[] temp = double_arm.getEncoderValues();
+    SmartDashboard.putNumber("encoder 1", temp[0]);
+      //motion vector x, motion vector y, turning factor, overall vector x, overall vector y
+    SmartDashboard.putNumber("arm 1 angle", temp[1]);
+    SmartDashboard.putNumber("encoder 2", temp[2]);
+    SmartDashboard.putNumber("arm 2 angle", temp[3]);
+
+    SmartDashboard.updateValues();
   }
 
   @Override
@@ -69,6 +91,8 @@ public class Robot extends TimedRobot {
   @Override
   public void teleopInit() {
     driver = new XboxController(0);
+    if (double_arm == null)
+      double_arm = new DoubleArm();
 ;    //if (m_autonomousCommand != null) {
     //  m_autonomousCommand.cancel();
     //}

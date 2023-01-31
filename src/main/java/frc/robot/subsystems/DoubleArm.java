@@ -18,13 +18,8 @@ public class DoubleArm {
     private Encoder first_pivot_encoder;
     private Encoder second_pivot_encoder;
 
-    private final double first_pivot_initial;
-    private final double second_pivot_initial;
-
     private double first_pivot_target;
     private double second_pivot_target;
-
-    private double time;
     
     public DoubleArm() {
         first_pivot = new CANSparkMax(f_pivot, MotorType.kBrushless); // NEO Motors are brushless
@@ -38,21 +33,33 @@ public class DoubleArm {
 
         first_pivot_encoder.setDistancePerPulse(Math.PI / 4986.0); // 2048 * 4 ticks per revolution
         second_pivot_encoder.setDistancePerPulse(Math.PI / 4986.0); // adjust this there's a gear ratio
+            // 2pi of an angle per every 8192 ticks
 
-        first_pivot_initial = first_pivot_encoder.getDistance() - first_arm_initial_angle * Math.PI / 180.0;
-        // angle = distance() - first pivot initial + init angle
-        second_pivot_initial = second_pivot_encoder.getDistance() - second_arm_initial_angle * Math.PI / 180.0;
+        first_pivot_target = first_pivot_encoder.getDistance();
+        second_pivot_target = second_pivot_encoder.getDistance();
+    }
 
-        first_pivot_target = first_arm_initial_angle * Math.PI / 180.0;
-        second_pivot_target = first_pivot_target + second_arm_initial_angle * Math.PI / 180.0;
+    public void resetEncoders() { // do this at the beginning just to normalize it
+        first_pivot_encoder.reset();
+        second_pivot_encoder.reset();
 
-        time = System.nanoTime() / 1000000000.0;
+        first_pivot_target = first_pivot_encoder.getDistance(); // should be 0
+        second_pivot_target = second_pivot_encoder.getDistance();
+    }
+
+    public double[] getEncoderValues() {
+        return new double[] {
+            first_pivot_encoder.getDistance(),
+            first_pivot_encoder.getDistance() - first_encoder_zero,
+            second_pivot_encoder.getDistance(),
+            second_pivot_encoder.getDistance() - second_encoder_zero,
+        };
     }
 
     private double[] getArmAngles() {
         return new double[] {
-            first_pivot_encoder.getDistance() - first_pivot_initial, 
-            first_pivot_encoder.getDistance() - first_pivot_initial + second_pivot_encoder.getDistance() - second_pivot_initial
+            first_pivot_encoder.getDistance() - first_encoder_zero, 
+            second_pivot_encoder.getDistance() - second_encoder_zero
         };
     }
 
@@ -142,10 +149,12 @@ public class DoubleArm {
 
         double first_angle = Math.acos((radius * radius + first_arm_length * first_arm_length - second_arm_length * second_arm_length) / (2.0 * first_arm_length * radius)); // not the target angles, just something that's useful
         double second_angle = Math.acos((radius * radius + second_arm_length * second_arm_length - first_arm_length * first_arm_length) / (2.0 * second_arm_length * radius));
+                // angle between first arm and radial vector and between second arm and radial vector
 
         return new double[] {
-            angle + (angle < 0 ? 0 - first_angle : first_angle), 
+            angle + (angle < 0 ? 0 - first_angle : first_angle), // replace 0 with whatever our switching angle should be
             angle + (angle < 0 ? second_angle : 0 - second_angle)
+            // absolute angles, not target angles
         };
     }
 }
