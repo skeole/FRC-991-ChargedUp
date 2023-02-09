@@ -55,7 +55,7 @@ public class Limelight {
         double[] vals = getData(9);
         SmartDashboard.putNumber("April Tag IDs", vals[0]);
         SmartDashboard.putNumber("Robot Heading", vals[1]);
-        SmartDashboard.putNumber("Robot y", vals[2]);
+        SmartDashboard.putNumber("Robot x", vals[2]);
         SmartDashboard.putNumber("Robot z", vals[3]);
     }
 
