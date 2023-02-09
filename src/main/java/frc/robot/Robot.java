@@ -8,7 +8,6 @@ import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import frc.robot.subsystems.DoubleArm;
-import frc.robot.subsystems.Odometry;
 //import edu.wpi.first.wpilibj2.command.Command;
 //import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import frc.robot.subsystems.SwerveDriveTrain;
@@ -21,21 +20,18 @@ public class Robot extends TimedRobot {
 
   private SwerveDriveTrain swerve;
   private XboxController driver;
-  private Odometry odom;
   private DoubleArm double_arm;
 
   @Override
   public void robotInit() {
     //m_robotContainer = new RobotContainer();
     swerve = new SwerveDriveTrain();
-    odom = new Odometry();
     double_arm = new DoubleArm();
     double_arm.resetEncoders();
   }
 
   @Override
   public void robotPeriodic() { //autonomous command OR all non-driving teleOp Commands
-    odom.update();
     //CommandScheduler.getInstance().run();
     if (show_data) {
       double[][] temp = swerve.getWheelData();
@@ -46,7 +42,6 @@ public class Robot extends TimedRobot {
       SmartDashboard.putNumberArray("right_back", temp[2]);
       SmartDashboard.putNumberArray("left_back", temp[3]);
 
-      SmartDashboard.putNumberArray("x_pos_y_pos_angle", odom.getPosition());
       SmartDashboard.updateValues();
     }
   }
@@ -55,16 +50,18 @@ public class Robot extends TimedRobot {
   public void testInit() {
     if (double_arm == null)
       double_arm = new DoubleArm();
+    double_arm.resetEncoders(); // reset the encoders --> MAKE SURE the arm is in LeRest
   }
 
   @Override
   public void testPeriodic() {
-    double[] temp = double_arm.getEncoderValues();
+    double[] temp = double_arm.getData();
     SmartDashboard.putNumber("encoder 1", temp[0]);
       //motion vector x, motion vector y, turning factor, overall vector x, overall vector y
     SmartDashboard.putNumber("arm 1 angle", temp[1]);
     SmartDashboard.putNumber("encoder 2", temp[2]);
     SmartDashboard.putNumber("arm 2 angle", temp[3]);
+    // we want to make it where when we're straight out, both of the arm X angles register as zero
 
     SmartDashboard.updateValues();
   }

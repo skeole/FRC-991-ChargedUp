@@ -1,160 +1,178 @@
 package frc.robot.subsystems;
 
 import com.revrobotics.CANSparkMax;
-// go to WPILib Command Palette -> Manage Vendor Libraries -> Install new libraries (online) -> URL is https://software-metadata.revrobotics.com/REVLib-2023.json
-// run ./gradlew build in terminal to run gradle build
 import com.revrobotics.CANSparkMaxLowLevel.MotorType;
 
 import edu.wpi.first.wpilibj.Encoder;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
 import static frc.robot.Constants.*;
 
-public class DoubleArm {
-    
-    private CANSparkMax first_pivot;
-    private CANSparkMax second_pivot;
+public class DoubleArm extends SubsystemBase {
 
-    private Encoder first_pivot_encoder;
-    private Encoder second_pivot_encoder;
+    private CANSparkMax first_motor, second_motor;
+    private Encoder first_encoder, second_encoder;
 
-    private double first_pivot_target;
-    private double second_pivot_target;
-    
-    public DoubleArm() {
-        first_pivot = new CANSparkMax(f_pivot, MotorType.kBrushless); // NEO Motors are brushless
-        second_pivot = new CANSparkMax(s_pivot, MotorType.kBrushless);
+    public double[] target_xy = new double[2];
+    private double[] target_positions = new double[2];
 
-        first_pivot_encoder = new Encoder(0, 1); // idk what channelA and B are
-        second_pivot_encoder = new Encoder(0, 1);
+    public DoubleArm() { // Initialize the motors, encoders, and target positions
+        first_motor = new CANSparkMax(first_motor_ID, MotorType.kBrushless); // NEO Motors are brushless
+        second_motor = new CANSparkMax(second_motor_ID, MotorType.kBrushless);
 
-        first_pivot_encoder.setReverseDirection(false); // we want it so the encoder increases when the arm goes counterclockwise
-        second_pivot_encoder.setReverseDirection(false);
+        first_motor.setInverted(invert_first_motor);
+        second_motor.setInverted(invert_second_motor);
+        // we want it so powering the motors rotates the arms counterclockwise
 
-        first_pivot_encoder.setDistancePerPulse(Math.PI / 4986.0); // 2048 * 4 ticks per revolution
-        second_pivot_encoder.setDistancePerPulse(Math.PI / 4986.0); // adjust this there's a gear ratio
-            // 2pi of an angle per every 8192 ticks
+        first_encoder = new Encoder(first_encoder_channel_A, first_encoder_channel_B, invert_first_encoder, Encoder.EncodingType.k4X); // idk what channelA and B are
+        second_encoder = new Encoder(second_encoder_channel_A, second_encoder_channel_B, invert_second_encoder, Encoder.EncodingType.k4X);
+        // we want it so the encoder increases when the arm goes counterclockwise - may have to adjust them
 
-        first_pivot_target = first_pivot_encoder.getDistance();
-        second_pivot_target = second_pivot_encoder.getDistance();
-    }
+        first_encoder.setDistancePerPulse(45.0 / 1024.0); // 2048 * 4 = ticks per revolution; no gear ratio
+        second_encoder.setDistancePerPulse(45.0 / 1024.0); // 360 degrees per every 8192 pulses = 45 per every 1024 = 0.0439453125
+            // 360 degrees per every 8192 ticks
 
-    public void resetEncoders() { // do this at the beginning just to normalize it
-        first_pivot_encoder.reset();
-        second_pivot_encoder.reset();
-
-        first_pivot_target = first_pivot_encoder.getDistance(); // should be 0
-        second_pivot_target = second_pivot_encoder.getDistance();
-    }
-
-    public double[] getEncoderValues() {
-        return new double[] {
-            first_pivot_encoder.getDistance(),
-            first_pivot_encoder.getDistance() - first_encoder_zero,
-            second_pivot_encoder.getDistance(),
-            second_pivot_encoder.getDistance() - second_encoder_zero,
-        };
-    }
-
-    private double[] getArmAngles() {
-        return new double[] {
-            first_pivot_encoder.getDistance() - first_encoder_zero, 
-            second_pivot_encoder.getDistance() - second_encoder_zero
-        };
-    }
-
-    private double getFirstPivotTorque() {
-        double[] armAngles = getArmAngles();
-        double torque = first_arm_length * Math.cos(armAngles[0]) * (first_arm_center * first_arm_weight + second_arm_weight) + 
-                        second_arm_length * Math.cos(armAngles[1]) * second_arm_center * second_arm_weight;
-
-        return 0 - torque / 12.0; // pound-feet, positive means motor has to supply torque counterclockwise
-                                
-    } // currently, I'm assuming that the claw is rigid with the second arm. If it's not, I will have to account for that as well
-
-    private double getSecondPivotTorque() {
-        double torque = second_arm_length * Math.cos((getArmAngles())[1]) * second_arm_center * second_arm_weight;
-        return 0 - torque / 12.0;
-    }
-
-    public void goToPosition(double x, double y) {
-        double[] temp = convertPositionToAngles(x, y);
-        first_pivot_target = temp[0];
-        second_pivot_target = temp[1];
-        tick();
-    }
-
-    private double speed(double error_radians) {
-        return 2 * error_radians; // our target speed is 2 * angular error
-                                  // as a ratio; if magnitude > 1 -> it gets clipped
-    }
-
-    private void tick() {
-        double[] current_angles = getArmAngles();
+        target_positions[0] = first_encoder.getDistance() - first_encoder_zero;
+        target_positions[1] = first_encoder.getDistance() - first_encoder_zero + second_encoder.getDistance() - second_encoder_zero; 
+                            // if we want to reset encoders, run resetEncoders()
+                            // reset encoders before Autonomous and Testing, not before TeleOp tho
         
-        // Velocity PID
-        first_pivot.setVoltage(Math.min(12, Math.max(-12, 
-            first_pivot.getBusVoltage() + // whatever our current voltage is
+        target_xy[0] = first_arm_length * Math.cos(target_positions[0] * Math.PI / 180.0) + 
+                       second_arm_length * Math.cos(target_positions[1] * Math.PI / 180.0);
 
-            3 * (Math.min(1, Math.max(-1, speed(first_pivot_target - current_angles[0]))) * target_angular_speed * Math.PI / 180.0 - first_pivot_encoder.getRate()))
-            // if we're going slower/faster than we want, then correct that
-            // target angular speed is decreased if we are closer than half a radian
-            // we will have to tune this
-        ));
+        target_xy[1] = first_arm_length * Math.sin(target_positions[0] * Math.PI / 180.0) + 
+                       second_arm_length * Math.sin(target_positions[1] * Math.PI / 180.0);
 
-        second_pivot.setVoltage(Math.min(12, Math.max(-12, 
-            second_pivot.getBusVoltage() + 
-            3 * (Math.min(1, Math.max(-1, speed(second_pivot_target - current_angles[1]))) * target_angular_speed * Math.PI / 180.0 - second_pivot_encoder.getRate()))
-        ));
-
-        if (show_data) {
-            SmartDashboard.putNumberArray("Torque Data", new double[] {
-                getFirstPivotTorque(),
-                first_pivot.getBusVoltage(),
-                getSecondPivotTorque(),
-                second_pivot.getBusVoltage()
-            });
-        }
+        Timer.delay(1.0);
     }
 
-    private double[] convertPositionToAngles(double x, double y) { // position is with respect to the first pivot, not the ground
+    public void powerArm(double horizontalTarget, double verticalTarget) { // in RobotContainer have a function to make them continuous
+        setTargetPositions(horizontalTarget, verticalTarget);
 
-        // don't let x be less than 0
-        // plan: if y < 0, then make it so the arm is concave up
-        // if y > 0, make it so the arm is concave down
+        double[] current_angles = getAbsoluteArmAngles();
 
-        // assume the minimum for the radius is around 4 / 3 * theoretical minimum and maximum is 9 / 10 * theoretical maximum
-        // for now, assume that x > 0 at all times
+        first_motor.set(pidPower(
+            target_positions[0] - current_angles[0], 
+            first_motor_max_power, 
+            first_motor_min_error, 
+            first_motor_max_error
+        ));
 
-        if (x <= 0.25) {
-            x = 0.25;
-        }
-        double radius = Math.sqrt(x * x + y * y); // we don't have to worry about divide by zero errors
-        if (radius < 4.0 / 3.0 * (first_arm_length - second_arm_length)) {
-            x *= 4.0 * (first_arm_length - second_arm_length) / 3.0 / radius;
-            y *= 4.0 * (first_arm_length - second_arm_length) / 3.0 / radius;
-            radius = 4.0 * (first_arm_length - second_arm_length) / 3.0;
-        }
-        if (radius > 9.0 / 10.0 * (first_arm_length + second_arm_length)) {
-            x *= 9.0 * (first_arm_length + second_arm_length) / 10.0 / radius;
-            y *= 9.0 * (first_arm_length + second_arm_length) / 10.0 / radius;
-            radius = 9.0 * (first_arm_length + second_arm_length) / 10.0;
-        }
-        // normalize all of them so they are within the radius
+        second_motor.set(pidPower(
+            target_positions[1] - current_angles[1], 
+            second_motor_max_power, 
+            second_motor_min_error, 
+            second_motor_max_error
+        ));
+        // set power to arm modules
+    }
 
-        double angle = Math.atan(y / x); // neither target angle 1 nor target angle 2
-                                         // atan is between -90 and 90 so we're good :)
+    public void resetEncoders() {
+        first_encoder.reset();
+        second_encoder.reset();
+    }
+
+    public void setTargetPositions(double x, double y) {
+
+        if (x <= min_x) x = min_x; // don't let x be too close
+        if (y <= min_y) y = min_y; // don't let y be too low
+
+        double radius = Math.sqrt(x * x + y * y); // we don't have to worry about divide by zero errors because x > 0.25
+        if (radius < clipping_one * (first_arm_length - second_arm_length)) {
+            x *= clipping_one * (first_arm_length - second_arm_length) / radius;
+            y *= clipping_one * (first_arm_length - second_arm_length) / radius;
+            radius = clipping_one * (first_arm_length - second_arm_length);
+        } else if (radius > clipping_two * (first_arm_length + second_arm_length)) {
+            x *= clipping_two * (first_arm_length + second_arm_length) / radius;
+            y *= clipping_two * (first_arm_length + second_arm_length) / radius;
+            radius = clipping_two * (first_arm_length + second_arm_length);
+        } // clip radius to range
+
+        target_xy[0] = x;
+        target_xy[1] = y;
+
+        double angle = Math.atan(y / x) * 180.0 / Math.PI; // because x > 0 we don't have to worry about adding pi
         
         // set target 1 and target 2
 
-        double first_angle = Math.acos((radius * radius + first_arm_length * first_arm_length - second_arm_length * second_arm_length) / (2.0 * first_arm_length * radius)); // not the target angles, just something that's useful
-        double second_angle = Math.acos((radius * radius + second_arm_length * second_arm_length - first_arm_length * first_arm_length) / (2.0 * second_arm_length * radius));
-                // angle between first arm and radial vector and between second arm and radial vector
+        double first_angle = Math.acos((radius * radius + first_arm_length * first_arm_length - second_arm_length * second_arm_length) / (2.0 * first_arm_length * radius)) * 180.0 / Math.PI;
+        double second_angle = Math.acos((radius * radius + second_arm_length * second_arm_length - first_arm_length * first_arm_length) / (2.0 * second_arm_length * radius)) * 180.0 / Math.PI;
+                // not the target angles, just something that's useful
+                // angles of triangle between both arms and the radial vector
+                // Law of Cosines: a^2 + b^2 - 2ab cos(C) = c^2 --> cos(C) = (a^2 + b^2 - c^2) / (2ab)
 
+                // angle between first arm and radial vector and between second arm and radial vector
+                // this means that our target angles are the radial vector plus or minus these angles
+                // note, these are the target absolute angles, not the target relative angles
+
+        target_positions[0] = angle + (angle < switching_angle ? 0 - first_angle : first_angle);
+        target_positions[1] = angle + (angle < switching_angle ? second_angle : 0 - second_angle);
+            // if we are greater than our switching angle, then we are concave down; if we are less, then we are concave down
+    }
+
+    public double[] getAbsoluteArmAngles() {
         return new double[] {
-            angle + (angle < 0 ? 0 - first_angle : first_angle), // replace 0 with whatever our switching angle should be
-            angle + (angle < 0 ? second_angle : 0 - second_angle)
-            // absolute angles, not target angles
+            first_encoder.getDistance() - first_encoder_zero, 
+            first_encoder.getDistance() - first_encoder_zero + second_encoder.getDistance() - second_encoder_zero
         };
+    }
+
+    public double[] getData() {
+        /* Return the following:
+             * Arm 1 Raw Encoder
+             * Arm 2 Raw Encoder
+             * Arm 1 Measurement
+             * Arm 2 Relative Measurement
+             * Arm 2 Absolute Measurement
+             * Arm 1 target power
+             * Arm 2 target power
+         */
+        return new double[] {
+            first_encoder.getDistance(), 
+            second_encoder.getDistance(), 
+            first_encoder.getDistance() - first_encoder_zero, 
+            second_encoder.getDistance() - second_encoder_zero, 
+            first_encoder.getDistance() - first_encoder_zero + second_encoder.getDistance() - second_encoder_zero, 
+            pidPower(
+                target_positions[0] - (first_encoder.getDistance() - first_encoder_zero), 
+                first_motor_max_power, 
+                first_motor_min_error, 
+                first_motor_max_error),
+            pidPower(
+                target_positions[1] - (first_encoder.getDistance() - first_encoder_zero + second_encoder.getDistance() - second_encoder_zero), 
+                second_motor_max_power, 
+                second_motor_min_error, 
+                second_motor_max_error)
+        };
+    }
+
+    public double pidPower(double error, double maxPower, double minDegreesOff, double maxDegreesOff) {
+        int multiplier = 1;
+        if (error < 0) {
+            error = 0 - error;
+            multiplier = -1;
+        }
+
+        if (error < minDegreesOff) return 0;
+
+        error /= maxDegreesOff;
+        if (error > 1) error = 1;
+
+        return maxPower * multiplier * Math.pow(error, k_exponent);
+
+    }
+
+    @Override
+    public void periodic() { // PID and Telemetry
+        double[] data = getData();
+        SmartDashboard.putNumber("Arm 1 Raw Encoder", data[0]);
+        SmartDashboard.putNumber("Arm 2 Raw Encoder", data[1]);
+        SmartDashboard.putNumber("Arm 1 Angle", data[2]);
+        SmartDashboard.putNumber("Arm 2 Relative Angle", data[3]);
+        SmartDashboard.putNumber("Arm 2 Absolute Angle", data[4]);
+        SmartDashboard.putNumber("Arm 1 target power", data[5]);
+        SmartDashboard.putNumber("Arm 2 target power", data[6]);
     }
 }
